@@ -1,0 +1,16 @@
+[project]
+name = "translateocr"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "easyocr>=1.7.2",
+    "fastapi[standard]>=0.115.12",
+    "ocrmypdf>=16.10.2",
+    "openai>=1.87.0",
+    "opencv-python>=4.11.0.86",
+    "pdf2image>=1.17.0",
+    "pillow>=11.2.1",
+    "uvicorn[standard]>=0.34.3",
+]

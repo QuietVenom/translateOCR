@@ -1,0 +1,54 @@
+# Environment files
+.env
+.env.*
+!.env.example  # Keep example file
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Log files
+*.log
+*.log.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Celery files
+celerybeat-schedule
+celerybeat.pid
+
+# Docker artifacts
+docker-compose.override.yml
+
+# Documentation
+docs/_build/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Jupyter notebooks
+*.ipynb
+*.ipynb_checkpoints/
+
+# Specific to this project
+app.log  # From logging configuration
