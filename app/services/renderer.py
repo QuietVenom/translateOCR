@@ -1,10 +1,42 @@
 import io
+import os
+from pathlib import Path
+from typing import Optional
 import numpy as np
 import cv2
+import logging
 from PIL import Image, ImageDraw, ImageFont
 
-# Load a default TrueType font
-FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+logger = logging.getLogger(__name__)
+
+def get_font_path() -> str:
+    """Resolve font path with fallback logic"""
+    # 1. Try environment variable first
+    env_path = os.getenv("FONT_PATH")
+    if env_path and Path(env_path).exists():
+        return str(Path(env_path).resolve())
+
+    # 2. Try default relative path (from renderer.py location)
+    local_font = Path(__file__).parent.parent / "assets" / "fonts" / "DejaVuSans-Bold.ttf"
+    if local_font.exists():
+        return str(local_font.resolve())
+
+    # 3. Try system fonts
+    system_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+        "/Library/Fonts/Arial.ttf",  # macOS
+        "C:\\Windows\\Fonts\\arial.ttf"  # Windows
+    ]
+    
+    for path in system_paths:
+        if Path(path).exists():
+            return path
+
+    # 4. Final fallback to None (will use PIL's default)
+    return None
+
+# Usage in renderer.py
+FONT_PATH = get_font_path()
 
 def blur_and_overlay(page_image: Image.Image, boxes: list[dict], translations: list[str]) -> Image.Image:
     """
@@ -19,19 +51,27 @@ def blur_and_overlay(page_image: Image.Image, boxes: list[dict], translations: l
     # Convert PIL to OpenCV image (BGR)
     cv_img = cv2.cvtColor(np.array(page_image), cv2.COLOR_RGB2BGR)
 
-    # 1. Apply blur to each bounding box
+    # Create single mask for all boxes
+    mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
     for box in boxes:
         x0, y0, x1, y1 = map(int, box['bbox'])
-        roi = cv_img[y0:y1, x0:x1]
-        if roi.size == 0:
-            continue
-        blurred = cv2.GaussianBlur(roi, (21, 21), 0)
-        cv_img[y0:y1, x0:x1] = blurred
+        mask[y0:y1, x0:x1] = 255
+    
+    # Apply blur to entire image (faster)
+    blurred = cv2.GaussianBlur(cv_img, (21, 21), 0)
+    cv_img = np.where(mask[..., None], blurred, cv_img)
 
     # Back to PIL for text overlay
     pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(pil_img)
-    font = ImageFont.truetype(FONT_PATH, size=14)
+    try:
+        font = ImageFont.truetype(FONT_PATH, size=14)
+    except IOError:
+        try:
+            font = ImageFont.truetype("arial.ttf", size=14)
+        except IOError:
+            font = ImageFont.load_default()
+            logger.warning("Using fallback font, text quality may suffer")
 
     # 2. Overlay translations
     for box, text in zip(boxes, translations):
