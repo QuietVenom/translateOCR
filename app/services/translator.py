@@ -1,8 +1,8 @@
-# app/translator.py
+# app/services/translator.py
+
 import os
 import logging
-from openai import OpenAI
-from openai import RateLimitError, APIError
+from openai import OpenAI, RateLimitError, APIError
 from typing import List
 from tenacity import (
     retry,
@@ -11,14 +11,18 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENAI_API_KEY environment variable not set")
-
-client = OpenAI()
-client.api_key = api_key
 logger = logging.getLogger(__name__)
+_client = None
 
+def _get_openai_client():
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY environment variable not set")
+        # Instantiate client only when needed
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 SYSTEM_PROMPT = (
     "You are a helpful translation assistant. "
@@ -29,51 +33,52 @@ SYSTEM_PROMPT = (
 class TranslationError(Exception):
     pass
 
-# Retry decorator: exponential backoff with jitter, stop after 6 attempts
 @retry(
     reraise=True,
-    stop=stop_after_attempt(6),
-    wait=wait_random_exponential(min=1, max=60),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(min=1, max=30),
     retry=retry_if_exception_type((RateLimitError, APIError)),
 )
 def _translate_batch_with_backoff(texts: List[str]) -> List[str]:
+    # Only here do we check for the API key and create the client
+    client = _get_openai_client()
     try:
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": "\n".join(texts)}
+                {"role": "user", "content": "\n".join(texts)},
             ],
             temperature=0.3,
             max_tokens=1024,
         )
+        # Split by newline to map back to each input
         translations = completion.choices[0].message.content.split("\n")
-        return translations[:len(texts)]  # Safety check
+        return translations[:len(texts)]
     except Exception as e:
-        logger.error(f"Translation failed: {str(e)}")
+        logger.error(f"Translation failed: {e}")
         raise TranslationError("API translation failed") from e
 
-
 def translate_batch(texts: List[str]) -> List[str]:
-    """Smart batching respecting token limits"""
-    MAX_TOKENS = 3000
-    batches = []
-    current_batch = []
-    current_count = 0
-    
+    """
+    Break inputs into batches to respect token limits, then translate each batch.
+    """
+    MAX_TOKENS = 3000  # rough token estimate
+    batches, current, count = [], [], 0
+
     for text in texts:
-        tokens = len(text) // 4  # Approximate token count
-        if current_count + tokens > MAX_TOKENS and current_batch:
-            batches.append(current_batch)
-            current_batch = []
-            current_count = 0
-        current_batch.append(text)
-        current_count += tokens
-    
-    if current_batch:
-        batches.append(current_batch)
-    
-    results = []
+        tokens = len(text) // 4
+        if current and (count + tokens) > MAX_TOKENS:
+            batches.append(current)
+            current, count = [], 0
+        current.append(text)
+        count += tokens
+
+    if current:
+        batches.append(current)
+
+    results: List[str] = []
     for batch in batches:
         results.extend(_translate_batch_with_backoff(batch))
+
     return results
