@@ -11,8 +11,12 @@ from tenacity import (
     retry_if_exception_type,
 )
 
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise RuntimeError("OPENAI_API_KEY environment variable not set")
+
 client = OpenAI()
-client.api_key = os.getenv("OPENAI_API_KEY", "")
+client.api_key = api_key
 logger = logging.getLogger(__name__)
 
 

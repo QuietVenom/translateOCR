@@ -1,3 +1,10 @@
+import logging.config
+import yaml
+
+with open("logging.yaml") as f:
+    config = yaml.safe_load(f)
+    logging.config.dictConfig(config)
+
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from celery.result import AsyncResult
@@ -9,18 +16,15 @@ from typing import Dict, Any
 app = FastAPI()
 
 @app.post("/translate")
-async def create_translation_task(file: UploadFile) -> Dict[str, Any]:
+async def create_translation_task(file: UploadFile):
     """Initiate PDF translation and return task ID"""
     try:
         pdf_bytes = await file.read()
         task = translate_pdf_task.delay(pdf_bytes)
-        return JSONResponse({
-            "task_id": task.id,
-            "status_url": f"/tasks/{task.id}",
-            "message": "Translation started"
-        })
+        return JSONResponse({ "task_id": task.id, "status_url": f"/tasks/{task.id}", "message": "Translation started" })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception("Failed to start translation")
+        raise HTTPException(status_code=500, detail="Failed to initiate translation")
 
 @app.get("/tasks/{task_id}")
 async def get_task_status(task_id: str) -> Dict[str, Any]:
@@ -60,7 +64,7 @@ async def get_task_status(task_id: str) -> Dict[str, Any]:
             "progress": task.info.get('progress', 0),
             "failed_stage": task.info.get('stage', 'unknown')
         })
-        raise HTTPException(status_code=500, detail=response)
+        return JSONResponse(status_code=500, content=response)
     
     return JSONResponse(response)
 
