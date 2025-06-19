@@ -17,9 +17,8 @@ services:
   worker:
     build: .
     command: >
-      celery -A app.tasks.celery_app.celery
-      worker
-      --concurrency=${CELERY_WORKER_CONCURRENCY:-${CPU_COUNT}}
+      celery -A app.tasks.celery_app.celery worker
+      --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
       --loglevel=info
     env_file: .env
     depends_on:

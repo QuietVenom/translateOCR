@@ -1,26 +1,58 @@
+# .github/workflows/ci.yml
 name: CI
 
+# Trigger on pushes and PRs to main (adjust branch names as needed)
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      # 1) Check out your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      # 2) Set up Python
+      - name: Set up Python 3.13
         uses: actions/setup-python@v4
         with:
           python-version: 3.13
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest httpx pytest-asyncio
+      # 3) Upgrade pip to the latest version
+      - name: Upgrade pip
+        run: pip install --upgrade pip
 
-      - name: Run tests
+      # 4) Install your package (and extras, if you have any)
+      #    This ensures FastAPI, Celery, EasyOCR, etc. are available.
+      - name: Install application dependencies
+        run: |
+          # If you declared any extras in pyproject.toml (e.g. [project.optional-dependencies.standard]),
+          # you can install them via `.[standard]`. Otherwise, just install the package itself.
+          pip install .[standard]
+
+      # 5) Install test-specific dependencies
+      - name: Install test dependencies
+        run: pip install pytest httpx pytest-asyncio
+
+      # 6) (Optional) Configure Celery for eager testing
+      - name: Configure Celery for eager mode
+        run: |
+          # Create a tests/conftest.py on-the-fly to force tasks to run in-process
+          cat <<EOF > tests/conftest.py
+          import os
+          os.environ.setdefault("CELERY_BROKER_URL", "memory://")
+          os.environ.setdefault("CELERY_RESULT_BACKEND", "cache+memory://")
+          os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "True")
+          os.environ.setdefault("CELERY_TASK_EAGER_PROPAGATES_EXCEPTIONS", "True")
+          EOF
+
+      # 7) Run your test suite
+      - name: Run pytest
         run: pytest --maxfail=1 --disable-warnings -q
