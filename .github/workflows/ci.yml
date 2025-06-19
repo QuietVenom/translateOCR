@@ -35,7 +35,7 @@ jobs:
         run: |
           # If you declared any extras in pyproject.toml (e.g. [project.optional-dependencies.standard]),
           # you can install them via `.[standard]`. Otherwise, just install the package itself.
-          pip install .[standard]
+          pip install .
 
       # 5) Install test-specific dependencies
       - name: Install test dependencies
