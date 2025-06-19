@@ -27,46 +27,37 @@ async def create_translation_task(file: UploadFile):
         raise HTTPException(status_code=500, detail="Failed to initiate translation")
 
 @app.get("/tasks/{task_id}")
-async def get_task_status(task_id: str) -> Dict[str, Any]:
-    """Check translation task status and get results when complete"""
-    task = AsyncResult(task_id, app=celery)
-    
+async def get_task_status(task_id: str):
+    task = AsyncResult(task_id, app=translate_pdf_task.app)
+    # base payload
     response = {
         "task_id": task_id,
-        "status": task.state,
+        "state": task.state,
+        "progress": 0
     }
-    
-    if task.state == 'PROGRESS':
-        response.update({
-            "progress": task.info.get('progress', 0),
-            "stage": task.info.get('stage', 'unknown'),
-            "details": task.info.get('details', '')
+
+    if task.state == "PENDING":
+        # still queued
+        return JSONResponse(status_code=202, content=response)
+
+    if task.state == "PROGRESS":
+        info = task.info or {}
+        response["progress"] = info.get("progress", 0)
+        return JSONResponse(status_code=202, content=response)
+
+    if task.state == "SUCCESS":
+        return JSONResponse(status_code=200, content={
+            **response,
+            "result_url": f"/results/{task_id}"
         })
-    elif task.state == 'SUCCESS':
-        # For small results, return directly
-        if isinstance(task.result, bytes) and len(task.result) < 1_000_000:  # 1MB limit
-            return StreamingResponse(
-                io.BytesIO(task.result),
-                media_type="application/pdf",
-                headers={
-                    "Content-Disposition": f"attachment; filename=translated.pdf",
-                    "X-Task-Status": "complete"
-                }
-            )
-        else:
-            response.update({
-                "download_url": f"/tasks/{task_id}/download",
-                "message": "Translation complete"
-            })
-    elif task.state == 'FAILURE':
-        response.update({
-            "error": task.info.get('error', 'Unknown error'),
-            "progress": task.info.get('progress', 0),
-            "failed_stage": task.info.get('stage', 'unknown')
-        })
-        return JSONResponse(status_code=500, content=response)
-    
-    return JSONResponse(response)
+
+    # FAILURE or other unexpected states
+    info = task.info or {}
+    error_msg = info.get("error", "An unexpected error occurred")
+    return JSONResponse(status_code=500, content={
+        **response,
+        "error": error_msg
+    })
 
 @app.get("/tasks/{task_id}/download")
 async def download_translated_pdf(task_id: str):

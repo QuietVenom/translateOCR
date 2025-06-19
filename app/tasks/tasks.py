@@ -1,6 +1,6 @@
 # app/tasks/tasks.py
 
-import celery
+from app.tasks.celery_app import celery
 from app.pipeline import process_pdf_bytes
 from celery.app.task import Task
 
