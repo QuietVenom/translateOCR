@@ -45,6 +45,7 @@ jobs:
       - name: Configure Celery for eager mode
         run: |
           # Create a tests/conftest.py on-the-fly to force tasks to run in-process
+          mkdir -p tests
           cat <<EOF > tests/conftest.py
           import os
           os.environ.setdefault("CELERY_BROKER_URL", "memory://")
