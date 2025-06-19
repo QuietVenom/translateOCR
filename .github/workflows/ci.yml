@@ -39,7 +39,7 @@ jobs:
 
       # 5) Install test-specific dependencies
       - name: Install test dependencies
-        run: pip install pytest httpx pytest-asyncio
+        run: pip install pytest
 
       # 6) (Optional) Configure Celery for eager testing
       - name: Configure Celery for eager mode

@@ -4,12 +4,12 @@ A Dockerized FastAPI service that accepts PDFs, performs OCR on each page using 
 
 ## Features
 
-- **OCR**: Converts PDF pages to images and extracts text using EasyOCR with lazy initialization per worker.
-- **Translation**: Uses OpenAI API to translate extracted text via a background Celery task.
-- **PDF Rendering**: Renders translated text back onto PDF pages.
-- **Asynchronous Processing**: Task queue powered by Celery + Redis, configurable worker concurrency.
-- **Dockerized**: Run the entire stack (API + worker + Redis) via Docker Compose.
-- **CI Pipeline**: GitHub Actions workflow for linting and testing with pytest in eager Celery mode.
+* **OCR**: Converts PDF pages to images and extracts text using EasyOCR with lazy initialization per worker.
+* **Translation**: Uses OpenAI API to translate extracted text via a background Celery task.
+* **PDF Rendering**: Renders translated text back onto PDF pages.
+* **Asynchronous Processing**: Task queue powered by Celery + Redis, configurable worker concurrency.
+* **Dockerized**: Run the entire stack (API + worker + Redis) via Docker Compose.
+* **CI Pipeline**: GitHub Actions workflow for linting and testing with pytest in eager Celery mode.
 
 ## Table of Contents
 
@@ -24,18 +24,20 @@ A Dockerized FastAPI service that accepts PDFs, performs OCR on each page using 
 
 ## Prerequisites
 
-- Docker >= 20.10
-- Docker Compose >= 1.29 (or Docker Compose V2)
-- Make sure ports `8000` (API) and `6379` (Redis) are available
+* Docker >= 20.10
+* Docker Compose >= 1.29 (or Docker Compose V2)
+* Make sure ports `8000` (API) and `6379` (Redis) are available
 
 ## Installation
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/yourusername/quietvenom-translateocr.git
    cd quietvenom-translateocr
    ```
 2. **Copy and fill your environment file**:
+
    ```bash
    cp .env.example .env
    # Edit .env with your values
@@ -60,8 +62,8 @@ Start the full stack (API, worker, Redis):
 docker-compose up --build
 ```
 
-- **API**: [http://localhost:8000](http://localhost:8000)
-- **Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **API**: [http://localhost:8000](http://localhost:8000)
+* **Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 To run only the API (no worker):
 
@@ -73,9 +75,10 @@ docker-compose up --build web
 
 ### POST `/translate`
 
-- **Description**: Upload a PDF to start a translation job.
-- **Request**: Multipart form with field `file`.
-- **Response**:
+* **Description**: Upload a PDF to start a translation job.
+* **Request**: Multipart form with field `file`.
+* **Response**:
+
   ```json
   {
     "task_id": "<uuid>",
@@ -86,8 +89,9 @@ docker-compose up --build web
 
 ### GET `/tasks/{task_id}`
 
-- **Description**: Check status of a translation job.
-- **Response** (202 Pending/Progress):
+* **Description**: Check status of a translation job.
+* **Response** (202 Pending/Progress):
+
   ```json
   {
     "task_id": "<uuid>",
@@ -95,7 +99,8 @@ docker-compose up --build web
     "progress": 0
   }
   ```
-- **Response** (200 Success):
+* **Response** (200 Success):
+
   ```json
   {
     "task_id": "<uuid>",
@@ -104,7 +109,8 @@ docker-compose up --build web
     "result_url": "/results/<task_id>"
   }
   ```
-- **Response** (500 Failure):
+* **Response** (500 Failure):
+
   ```json
   {
     "task_id": "<uuid>",
@@ -116,8 +122,8 @@ docker-compose up --build web
 
 ### GET `/tasks/{task_id}/download`
 
-- **Description**: Download the translated PDF result for a completed task.
-- **Response**: Returns the translated PDF file with `Content-Type: application/pdf`.
+* **Description**: Download the translated PDF result for a completed task.
+* **Response**: Returns the translated PDF file with `Content-Type: application/pdf`.
 
 ## Testing
 
@@ -125,7 +131,7 @@ Run tests locally (requires Python 3.13 and dependencies installed):
 
 ```bash
 pip install .
-pip install pytest httpx pytest-asyncio
+pip install pytest
 pytest
 ```
 
@@ -133,14 +139,22 @@ pytest
 
 Configured via GitHub Actions in `.github/workflows/ci.yml`. Key steps:
 
-- Checkout code
-- Setup Python 3.13
-- Install application (`pip install .`)
-- Install test deps (`pytest`, `httpx`, `pytest-asyncio`)
-- Configure Celery for eager mode
-- Run `pytest`
+* Checkout code
+* Setup Python 3.13
+* Install application (`pip install .`)
+* Install test dependencies (`pytest`)
+* Configure Celery for eager mode
+* Run `pytest`
+
+Configured via GitHub Actions in `.github/workflows/ci.yml`. Key steps:
+
+* Checkout code
+* Setup Python 3.13
+* Install application (`pip install .`)
+* Install test deps (`pytest`, `httpx`, `pytest-asyncio`)
+* Configure Celery for eager mode
+* Run `pytest`
 
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
-
