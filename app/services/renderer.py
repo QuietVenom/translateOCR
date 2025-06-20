@@ -1,7 +1,7 @@
 import io
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Dict
 import numpy as np
 import cv2
 import logging
@@ -38,25 +38,26 @@ def get_font_path() -> str:
 # Usage in renderer.py
 FONT_PATH = get_font_path()
 
-def blur_and_overlay(page_image: Image.Image, boxes: list[dict], translations: list[str]) -> Image.Image:
-    """
-    Args:
-        page_image: PIL image of a PDF page
-        boxes: list of dicts with 'bbox': [x0, y0, x1, y1]
-        translations: corresponding list of translated strings
-
-    Returns:
-        A new PIL image with blurred text boxes and overlayed translations.
-    """
+def blur_and_overlay(
+    page_image: Image.Image,
+    boxes: List[Dict],
+    translations: List[str]
+) -> Image.Image:
     # Convert PIL to OpenCV image (BGR)
     cv_img = cv2.cvtColor(np.array(page_image), cv2.COLOR_RGB2BGR)
 
     # Create single mask for all boxes
     mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
     for box in boxes:
-        x0, y0, x1, y1 = map(int, box['bbox'])
+        # ─── HERE: collapse polygon to rect ──────────────────────────
+        coords = box['bbox']  # e.g. [[x0,y0], [x1,y1], [x2,y2], [x3,y3]]
+        xs = [pt[0] for pt in coords]
+        ys = [pt[1] for pt in coords]
+        x0, y0 = int(min(xs)), int(min(ys))
+        x1, y1 = int(max(xs)), int(max(ys))
+        # ───────────────────────────────────────────────────────────────
         mask[y0:y1, x0:x1] = 255
-    
+
     # Apply blur to entire image (faster)
     blurred = cv2.GaussianBlur(cv_img, (21, 21), 0)
     cv_img = np.where(mask[..., None], blurred, cv_img)
@@ -75,7 +76,13 @@ def blur_and_overlay(page_image: Image.Image, boxes: list[dict], translations: l
 
     # 2. Overlay translations
     for box, text in zip(boxes, translations):
-        x0, y0, x1, y1 = box['bbox']
+        # ─── HERE: collapse polygon to rect for overlay ───────────────
+        coords = box['bbox']
+        xs = [pt[0] for pt in coords]
+        ys = [pt[1] for pt in coords]
+        x0, y0 = int(min(xs)), int(min(ys))
+        x1, y1 = int(max(xs)), int(max(ys))
+        # ───────────────────────────────────────────────────────────────
         # Fit text inside bbox:
         text_bbox = draw.textbbox((x0, y0), text, font=font)
         text_w = text_bbox[2] - text_bbox[0]

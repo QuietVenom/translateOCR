@@ -41,23 +41,34 @@ async def get_task_status(task_id: str):
         return JSONResponse(status_code=202, content=response)
 
     if task.state == "PROGRESS":
-        info = task.info or {}
-        response["progress"] = info.get("progress", 0)
+        try:
+            info = task.info
+            if isinstance(info, dict):
+                response["progress"] = info.get("progress", 0)
+        except Exception:
+            response["progress"] = 0
         return JSONResponse(status_code=202, content=response)
 
     if task.state == "SUCCESS":
-        return JSONResponse(status_code=200, content={
-            **response,
-            "result_url": f"/results/{task_id}"
-        })
+        return JSONResponse(
+            status_code=200,
+            content={**response, "progress": 100, "result_url": f"/tasks/{task_id}/download"},
+        )
 
-    # FAILURE or other unexpected states
-    info = task.info or {}
-    error_msg = info.get("error", "An unexpected error occurred")
-    return JSONResponse(status_code=500, content={
-        **response,
-        "error": error_msg
-    })
+    # FAILURE (or any other state)
+    try:
+        info = task.info
+        if isinstance(info, dict):
+            error_msg = info.get("error", "An unexpected error occurred")
+        else:
+            error_msg = "An unexpected error occurred"
+    except Exception:
+        error_msg = "An unexpected error occurred"
+
+    return JSONResponse(
+        status_code=500,
+        content={**response, "error": error_msg},
+    )
 
 @app.get("/tasks/{task_id}/download")
 async def download_translated_pdf(task_id: str):

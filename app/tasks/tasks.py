@@ -4,7 +4,7 @@ from app.tasks.celery_app import celery
 from app.pipeline import process_pdf_bytes
 from celery.app.task import Task
 
-@celery.task(bind=True, name="tasks.translate_pdf")
+@celery.task(bind=True)
 def translate_pdf_task(self: Task, pdf_bytes: bytes) -> bytes:
     """
     Delegates the heavy lifting to process_pdf_bytes,

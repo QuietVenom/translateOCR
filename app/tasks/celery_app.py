@@ -20,6 +20,8 @@ celery = Celery(
     backend=redis_url,
 )
 
+celery.autodiscover_tasks(["app.tasks"])
+
 # Celery Configuration
 celery.conf.update(
     task_track_started=True,  # Useful for tracking task progress
