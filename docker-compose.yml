@@ -1,34 +1,35 @@
-version: "3.8"
+version: '3.8'  # 3.8+ supports the `gpus:` directive
 
 services:
   redis:
-    image: redis:7
-    restart: always
+    image: redis:7.4.4
 
   web:
     build: .
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    env_file: .env
+    image: translateocr-web:gpu
     ports:
-      - "8000:8000"
+      - '8000:8000'
+    gpus: all              # <-- give this service access to all GPUs
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
     depends_on:
       - redis
 
   worker:
     build: .
-    command: >
-      celery -A app.tasks.celery_app.celery worker
-      --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
-      --loglevel=info
-    env_file: .env
+    image: translateocr-worker:gpu
+    command: celery -A app.tasks.tasks worker --loglevel=info
+    gpus: all              # <-- GPU for your OCR tasks
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
       - redis
 
   flower:
     image: mher/flower
     ports:
-      - "5555:5555"
-    environment:
-      - CELERY_BROKER_URL=${REDIS_URL}
+      - '5555:5555'
     depends_on:
       - redis
